@@ -49,21 +49,23 @@ function canvasNota(o){return new Promise(resolve=>{let c=document.createElement
 x.globalAlpha=.22;x.fillStyle='#ffffff';x.beginPath();x.arc(70,80,170,0,Math.PI*2);x.fill();x.beginPath();x.arc(950,1240,210,0,Math.PI*2);x.fill();x.globalAlpha=1;
 // white receipt panel
 x.fillStyle='rgba(255,255,255,.94)';x.beginPath();x.roundRect(65,65,870,1190,34);x.fill();
-let finish=()=>{x.textAlign='center';x.fillStyle='#554957';x.font='bold 34px "Comic Sans MS", "Comic Sans", cursive';x.fillText('Boo Gift House',500,300);x.font='bold 29px "Comic Sans MS", "Comic Sans", cursive';x.fillText('NOTA PESANAN',500,355);x.font='bold 24px "Comic Sans MS", "Comic Sans", cursive';x.fillStyle='#a45f83';x.fillText(`No. Nota  ${notaNumber(o)}`,500,410);
+let finish=()=>{x.textAlign='center';x.fillStyle='#554957';x.font='bold 34px Arial, sans-serif';x.fillText('Boo Gift House',500,300);x.font='bold 29px Arial, sans-serif';x.fillText('NOTA PESANAN',500,355);x.font='bold 24px Arial, sans-serif';x.fillStyle='#a45f83';x.fillText(`No. Nota  ${notaNumber(o)}`,500,410);x.font='22px Arial, sans-serif';x.fillStyle='#514852';x.fillText(`Tanggal Nota: ${new Date(o.date||Date.now()).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})}`,500,445);
 // separator
-x.strokeStyle='#e7c7d8';x.lineWidth=3;x.setLineDash([8,8]);x.beginPath();x.moveTo(115,450);x.lineTo(885,450);x.stroke();x.setLineDash([]);
-let y=510;const left=135,right=865;function line(label,value,opts={}){x.textAlign='left';x.fillStyle=opts.color||'#514852';x.font=opts.bold?'bold 29px "Comic Sans MS", "Comic Sans", cursive':'25px "Comic Sans MS", "Comic Sans", cursive';x.fillText(label,left,y);x.textAlign='right';x.fillText(value,right,y);y+=opts.gap||52}
-x.textAlign='left';x.fillStyle='#a45f83';x.font='bold 27px "Comic Sans MS", "Comic Sans", cursive';x.fillText('DETAIL PESANAN',left,y);y+=55;
-x.fillStyle='#514852';x.textAlign='left';x.font='bold 27px "Comic Sans MS", "Comic Sans", cursive';let prod=String(o.product||'Pesanan').slice(0,44);x.fillText(prod,left,y);y+=55;
-line('Jumlah',String(o.qty));line('Harga satuan',money(o.price));line('Ongkir',money(o.shipping));
+x.strokeStyle='#e7c7d8';x.lineWidth=3;x.setLineDash([8,8]);x.beginPath();x.moveTo(115,475);x.lineTo(885,475);x.stroke();x.setLineDash([]);
+let y=535;const left=135,right=865;function line(label,value,opts={}){x.textAlign='left';x.fillStyle=opts.color||'#514852';x.font=opts.bold?'bold 29px Arial, sans-serif':'25px Arial, sans-serif';x.fillText(label,left,y);x.textAlign='right';x.fillText(value,right,y);y+=opts.gap||52}
+x.textAlign='left';x.fillStyle='#a45f83';x.font='bold 27px Arial, sans-serif';x.fillText('DETAIL PESANAN',left,y);y+=52;
+// Header tabel pesanan: nama produk, qty, harga berjajar ke samping
+x.fillStyle='#f8e8f0';x.fillRect(115,y-30,770,54);x.fillStyle='#514852';x.font='bold 22px Arial, sans-serif';x.textAlign='left';x.fillText('Nama Produk',135,y+5);x.textAlign='center';x.fillText('Qty',665,y+5);x.textAlign='right';x.fillText('Harga',865,y+5);y+=55;
+x.fillStyle='#514852';x.font='24px Arial, sans-serif';x.textAlign='left';let prod=String(o.product||'Pesanan').slice(0,32);x.fillText(prod,135,y);x.textAlign='center';x.fillText(String(o.qty),665,y);x.textAlign='right';x.fillText(money(o.price),865,y);y+=58;
+line('Ongkir',money(o.shipping));
 x.strokeStyle='#e7c7d8';x.lineWidth=2;x.beginPath();x.moveTo(left,y-10);x.lineTo(right,y-10);x.stroke();y+=35;
-x.fillStyle='#a45f83';x.textAlign='left';x.font='bold 30px "Comic Sans MS", "Comic Sans", cursive';x.fillText('TOTAL',left,y);x.textAlign='right';x.fillStyle='#27212a';x.font='bold 42px "Comic Sans MS", "Comic Sans", cursive';x.fillText(money(o.total),right,y);y+=80;
-x.textAlign='left';x.fillStyle='#a45f83';x.font='bold 26px "Comic Sans MS", "Comic Sans", cursive';x.fillText('PEMBAYARAN',left,y);y+=52;
+x.fillStyle='#a45f83';x.textAlign='left';x.font='bold 30px Arial, sans-serif';x.fillText('TOTAL',left,y);x.textAlign='right';x.fillStyle='#27212a';x.font='bold 42px Arial, sans-serif';x.fillText(money(o.total),right,y);y+=80;
+x.textAlign='left';x.fillStyle='#a45f83';x.font='bold 26px Arial, sans-serif';x.fillText('PEMBAYARAN',left,y);y+=52;
 line('Metode',String(o.pay||'-'));line('Status',String(o.status||'-'));if(+o.dp>0){line('DP',money(o.dp));line('Sisa',money(Math.max(0,o.total-o.dp)));}
 line('Pengiriman',String(o.delivery||'-'));
-if(o.address){y+=5;x.textAlign='left';x.fillStyle='#514852';x.font='bold 23px "Comic Sans MS", "Comic Sans", cursive';x.fillText('Alamat:',left,y);y+=36;x.font='21px "Comic Sans MS", "Comic Sans", cursive';let words=String(o.address).split(' '),row='';for(let w of words){let test=row?row+' '+w:w;if(x.measureText(test).width>720){x.fillText(row,left,y);y+=30;row=w}else row=test}if(row){x.fillText(row,left,y);y+=34}}
-if(o.cardmsg){y+=8;x.fillStyle='#a45f83';x.font='bold 22px "Comic Sans MS", "Comic Sans", cursive';x.fillText('Ucapan kartu:',left,y);y+=32;x.fillStyle='#514852';x.font='20px "Comic Sans MS", "Comic Sans", cursive';let msg=String(o.cardmsg).slice(0,110);x.fillText(msg,left,y)}
-x.textAlign='center';x.fillStyle='#a45f83';x.font='bold 25px "Comic Sans MS", "Comic Sans", cursive';x.fillText('Terima kasih telah memilih Boo Gift House 💗',500,1190);x.font='20px "Comic Sans MS", "Comic Sans", cursive';x.fillStyle='#817582';x.fillText('A little gift, a lot of love',500,1225);resolve(c)};
+if(o.address){y+=5;x.textAlign='left';x.fillStyle='#514852';x.font='bold 23px Arial, sans-serif';x.fillText('Alamat:',left,y);y+=36;x.font='21px Arial, sans-serif';let words=String(o.address).split(' '),row='';for(let w of words){let test=row?row+' '+w:w;if(x.measureText(test).width>720){x.fillText(row,left,y);y+=30;row=w}else row=test}if(row){x.fillText(row,left,y);y+=34}}
+if(o.cardmsg){y+=8;x.fillStyle='#a45f83';x.font='bold 22px Arial, sans-serif';x.fillText('Ucapan kartu:',left,y);y+=32;x.fillStyle='#514852';x.font='20px Arial, sans-serif';let msg=String(o.cardmsg).slice(0,110);x.fillText(msg,left,y)}
+x.textAlign='center';x.fillStyle='#a45f83';x.font='bold 25px Arial, sans-serif';x.fillText('Terima kasih telah memilih Boo Gift House 💗',500,1190);x.font='20px Arial, sans-serif';x.fillStyle='#817582';x.fillText('A little gift, a lot of love',500,1225);resolve(c)};
 if(db.settings.logo){let im=new Image();im.onload=()=>{let max=180,s=Math.min(max/im.width,180/im.height);x.drawImage(im,500-im.width*s/2,95,im.width*s,im.height*s);finish()};im.onerror=finish;im.src=db.settings.logo}else finish()})}
 function dl(blob,name){let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 async function notaImage(id){let o=db.orders.find(x=>x.id===id),c=await canvasNota(o);c.toBlob(b=>dl(b,'nota-'+id+'.png'))}
