@@ -76,7 +76,21 @@ function exportExcel(){let rows=[['Tanggal','Nama pembeli','WhatsApp','Produk','
 function addCash(){db.cash.push({type:$('ct').value,desc:$('cd').value,amount:+$('ca').value||0});save();render()}
 function copyT(i){let t=window.templates[i][1];if(navigator.clipboard?.writeText)navigator.clipboard.writeText(t).then(()=>alert('Teks disalin')).catch(()=>prompt('Salin teks:',t));else prompt('Salin teks:',t)}
 function saveSettings(){db.settings.name=$('biz').value||'Boo Gift House';let f=$('logo').files[0];if(f)readImage(f,v=>{db.settings.logo=v;save();render()});else{save();render()}}
-function backup(){dl(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),'backup-boo-baby-hampers.json')}
+async function backup(){
+  const json=JSON.stringify(db,null,2);
+  const filename='backup-boo-baby-hampers-'+new Date().toISOString().slice(0,10)+'.json';
+  const file=new File([json],filename,{type:'application/json'});
+  try{
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'Backup Boo Gift House',text:'Cadangan data aplikasi Boo Gift House'});
+      return;
+    }
+  }catch(e){if(e && e.name==='AbortError')return;}
+  const blob=new Blob([json],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=filename;a.rel='noopener';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
 function restoreData(){let f=$('restore').files[0];if(!f)return alert('Pilih file backup');let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!d.products||!d.materials||!d.orders)throw 0;db=d;save();render();alert('Backup dipulihkan')}catch(e){alert('File backup tidak valid')}};r.readAsText(f)}
 render();
 </script></main></body></html>
