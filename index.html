@@ -22,29 +22,21 @@ async function uploadPhotoToStorage(file,folder){
   if(!cloudUser||!cloudClient)throw new Error('Silakan login terlebih dahulu.');
   if(!file.size)throw new Error('File foto kosong. Pilih foto lain dari Galeri atau File.');
   if(file.size>15*1024*1024)throw new Error('Ukuran foto lebih dari 15 MB. Pilih foto yang lebih kecil.');
-  let bitmap=null,objectUrl=null;
+  let bitmap=null,objectUrl=null,uploadBlob=file,contentType=file.type||'image/jpeg',extension=(file.name||'foto.jpg').split('.').pop().toLowerCase();
   try{
-    // Prefer Blob/object URL decoding: more reliable than FileReader on some Android tablets.
-    if('createImageBitmap' in window){
-      try{bitmap=await createImageBitmap(file,{imageOrientation:'from-image'});}catch(e){bitmap=null;}
-    }
-    let canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
-    if(bitmap){
-      const scale=Math.min(1,1200/Math.max(bitmap.width,bitmap.height));
-      canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
-      ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close?.();bitmap=null;
-    }else{
-      objectUrl=URL.createObjectURL(file);
-      const img=new Image();
-      await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('Browser tablet tidak dapat membaca format foto ini. Coba pilih JPG atau PNG.'));img.src=objectUrl;});
-      const scale=Math.min(1,1200/Math.max(img.naturalWidth,img.naturalHeight));
-      canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
-      ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    }
-    const image=await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Foto tidak dapat dikompres. Coba foto JPG/PNG lain.')),'image/jpeg',0.78));
+    // Coba kompres untuk menghemat kuota. Jika browser tablet gagal membaca JPG,
+    // unggah file aslinya tanpa memaksa browser mendekode gambar terlebih dahulu.
+    try{
+      if('createImageBitmap' in window) bitmap=await createImageBitmap(file,{imageOrientation:'from-image'});
+      let canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+      if(bitmap){const scale=Math.min(1,1200/Math.max(bitmap.width,bitmap.height));canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close?.();bitmap=null;}
+      else {objectUrl=URL.createObjectURL(file);const img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('Tidak dapat membaca gambar untuk kompresi'));img.src=objectUrl;});const scale=Math.min(1,1200/Math.max(img.naturalWidth,img.naturalHeight));canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));ctx.drawImage(img,0,0,canvas.width,canvas.height);}
+      uploadBlob=await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Kompresi gagal')),'image/jpeg',0.78));contentType='image/jpeg';extension='jpg';
+    }catch(decodeError){uploadBlob=file;contentType=file.type||'image/jpeg';}
     const safeName=(file.name||'foto').replace(/[^a-zA-Z0-9._-]/g,'_').replace(/\.[^.]+$/,'');
-    const path=`${cloudUser.id}/${folder}/${Date.now()}-${safeName}.jpg`;
-    const {error}=await cloudClient.storage.from('boo-gift-house-files').upload(path,image,{contentType:'image/jpeg',upsert:false});
+    const ext=['jpg','jpeg','png','webp','gif'].includes(extension)?extension:'jpg';
+    const path=`${cloudUser.id}/${folder}/${Date.now()}-${safeName}.${ext}`;
+    const {error}=await cloudClient.storage.from('boo-gift-house-files').upload(path,uploadBlob,{contentType,upsert:false});
     if(error)throw error;
     return cloudClient.storage.from('boo-gift-house-files').getPublicUrl(path).data.publicUrl;
   }finally{if(bitmap)bitmap.close?.();if(objectUrl)URL.revokeObjectURL(objectUrl);}
@@ -99,7 +91,7 @@ function drawRecipe(){if(!$('recipes'))return;$('recipes').innerHTML=recipe.map(
 function saveRecipe(){let name=$('hname').value.trim();if(!name)return alert('Isi nama perhitungan HPP.');let cost=hppTotal(),margin=Math.max(0,Math.min(99,+$('margin').value||0)),recommended=Math.ceil((cost/(1-margin/100))/1000)*1000,sell=rupiahInput($('sell').value);db.hppRecords=db.hppRecords||[];db.hppRecords.push({id:'h'+Date.now(),name,items:recipe,addons:window.addons||[],hpp:cost,margin,recommended,sell,profit:sell-cost});save();alert('HPP tersimpan. Tidak mengubah stok.');render()}
 function deleteHpp(i){if(confirm('Hapus catatan HPP ini?')){db.hppRecords.splice(i,1);save();render()}}
 async function addMat(){if(!$('mn').value.trim())return alert('Isi nama bahan');try{let f=$('mphoto')?.files[0],photo=f?await uploadPhotoToStorage(f,'materials'):'';db.materials.push({id:'m'+Date.now(),name:$('mn').value.trim(),photo,unit:$('unit').value,opening:+$('opening').value||0,minimum:+$('min').value||2,cost:rupiahInput($('mcost').value)});save();render();}catch(e){alert('Foto bahan gagal diunggah: '+e.message)}}
-async function editMat(id){let m=db.materials.find(x=>x.id===id);if(!m)return;let n=prompt('Nama bahan',m.name);if(n===null)return;let q=prompt('Batas minimum stok',Number(m.minimum)||2);if(q===null)return;let c=prompt('Harga beli satuan (angka saja)',m.cost);if(c===null)return;m.name=n.trim()||m.name;m.minimum=Math.max(0,+q||0);m.cost=rupiahInput(c);save();render();let old=document.getElementById('editPhotoPanel');if(old)old.remove();let panel=document.createElement('div');panel.id='editPhotoPanel';panel.className='card';panel.style.cssText='position:fixed;z-index:9999;left:12px;right:12px;top:20%;max-width:520px;margin:auto;box-shadow:0 8px 35px #0004;border:2px solid #ad6c80';panel.innerHTML=`<h3>Ganti foto: ${esc(m.name)}</h3><p class=muted>Tekan Pilih Foto, lalu pilih gambar dari Galeri atau File perangkat.</p><label>Foto bahan baru</label><input id=editMatPhoto type=file accept=image/*><div id=editMatPhotoPreview style=margin-top:8px></div><button class=primary type=button onclick=uploadEditedMaterialPhoto('${id}')>Upload dan simpan foto</button><button type=button onclick=closeEditPhotoPanel()>Batal</button>`;document.body.appendChild(panel);$('editMatPhoto').onchange=e=>{let f=e.target.files&&e.target.files[0];if(f)readImage(f,v=>$('editMatPhotoPreview').innerHTML=`<img class=thumb src='${v}'>`)}}
+async function editMat(id){let m=db.materials.find(x=>x.id===id);if(!m)return;let n=prompt('Nama bahan',m.name);if(n===null)return;let q=prompt('Batas minimum stok',Number(m.minimum)||2);if(q===null)return;let c=prompt('Harga beli satuan (angka saja)',m.cost);if(c===null)return;m.name=n.trim()||m.name;m.minimum=Math.max(0,+q||0);m.cost=rupiahInput(c);save();render();let old=document.getElementById('editPhotoPanel');if(old)old.remove();let panel=document.createElement('div');panel.id='editPhotoPanel';panel.className='card';panel.style.cssText='position:fixed;z-index:9999;left:12px;right:12px;top:20%;max-width:520px;margin:auto;box-shadow:0 8px 35px #0004;border:2px solid #ad6c80';panel.innerHTML=`<h3>Ganti foto: ${esc(m.name)}</h3><p class=muted>Tekan Pilih Foto, lalu pilih gambar dari Galeri atau File perangkat.</p><label>Foto bahan baru</label><input id=editMatPhoto type=file accept=image/*><div id=editMatPhotoPreview style=margin-top:8px></div><button class=primary type=button onclick=uploadEditedMaterialPhoto('${id}')>Upload dan simpan foto</button><button type=button onclick=closeEditPhotoPanel()>Batal</button>`;document.body.appendChild(panel);$('editMatPhoto').onchange=e=>{let f=e.target.files&&e.target.files[0];if(f){let u=URL.createObjectURL(f);$('editMatPhotoPreview').innerHTML=`<img class=thumb src='${u}'>`}}}
 function closeEditPhotoPanel(){let p=document.getElementById('editPhotoPanel');if(p)p.remove()}
 async function uploadEditedMaterialPhoto(id){let m=db.materials.find(x=>x.id===id),f=$('editMatPhoto')?.files?.[0];if(!m)return;if(!f)return alert('Tekan Pilih Foto dan pilih gambar terlebih dahulu.');try{let url=await uploadPhotoToStorage(f,'materials');m.photo=url;save();closeEditPhotoPanel();render();alert('Foto bahan berhasil diperbarui.')}catch(e){alert('Foto gagal diperbarui: '+e.message)}}
 function deleteMat(id){let m=db.materials.find(x=>x.id===id);if(!m)return;let related=db.moves.filter(x=>x.mid===id).length;let msg=`Hapus bahan “${m.name}”?
